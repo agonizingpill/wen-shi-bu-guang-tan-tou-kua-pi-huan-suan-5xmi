@@ -10,8 +10,13 @@ export async function showReadings(root, context) {
   root.innerHTML = `${plotHeader('值班用表', '早班交接', '记录经签发的补光读数。每条读数保留当时使用的版本。')}
     <div class="desk">
     <section>
-      <div class="active-strip"><h2>现行换算单</h2>${active.map(row => `<p><a href="#calibrations?version=${row.id}">
-        ${escape(row.version)}</a> · ${escape(row.release_day)} · ${escape(modes[row.mode])} · ${escape(calibrationCaption(row, probes))} ${status(row.state)}</p>`).join('') || empty('当前未签发任何时段。')}</div>
+      <div class="active-strip"><h2>现行换算单</h2>${active.map(row => {
+        const windows = (row.slot_window || []).map(item =>
+          `${clock(item.start_minute)}–${clock(item.end_minute)}`).join('、');
+        return `<p><a href="#calibrations?version=${row.id}">
+        ${escape(row.version)}</a> · ${escape(row.release_day)} · ${escape(modes[row.mode])} ·
+        ${escape(calibrationCaption(row, probes))} 现行槽 ${escape(windows)} ${status(row.state)}</p>`;
+      }).join('') || empty('当前未签发任何时段。')}</div>
       <div class="scroll-table"><table><caption>已登记的读数凭证</caption>
       <thead><tr><th>日期和时间</th><th>探头</th><th>探头 lx</th><th>校准 lx</th><th>版本</th></tr></thead>
       <tbody>${readings.map(row => `<tr><td>${escape(row.day)} ${clock(row.minute)}</td>

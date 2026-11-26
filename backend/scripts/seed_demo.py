@@ -74,7 +74,8 @@ def add_active_example(db, probe_id):
     )
     db.add(row)
     db.flush()
-    db.add(ReleaseSlot(probe_id=probe_id, day=RELEASE_DAY, mode=Mode.HIGH, calibration_id=row.id))
+    db.add(ReleaseSlot(probe_id=probe_id, day=RELEASE_DAY, mode=Mode.HIGH,
+                       start_minute=360, end_minute=390, calibration_id=row.id))
     db.add(ConversionReceipt(
         probe_id=probe_id, calibration_id=row.id, day=RELEASE_DAY, mode=Mode.HIGH, minute=361,
         raw_lux=480, adjusted_lux=round(float(adjust(model, [480])[0]), 2), entered_by="yu",

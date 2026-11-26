@@ -7,10 +7,44 @@ from sklearn.preprocessing import QuantileTransformer
 from .settings import BLOCK_MINUTES
 
 MODEL_SEED = 77
+# 接缝处同一原读数允许的最大换算差（lx）。
+SEAM_TOLERANCE_LX = 20
+SEAM_SAMPLE_POINTS = 257
 
 
 class InvalidReference(ValueError):
     pass
+
+
+def raw_span(model):
+    knots = np.asarray(model["raw_knots"], dtype=float)
+    return float(knots[0]), float(knots[-1])
+
+
+def seam_check(candidate_model, neighbor_model, label):
+    """局部替换候选与一条紧邻曲线比对接缝。
+
+    原读数量程没有重叠区间即拒签；重叠区间内按固定网格取同一原读数，
+    两版换算差超过 SEAM_TOLERANCE_LX 同样拒签。
+    """
+    candidate_lo, candidate_hi = raw_span(candidate_model)
+    neighbor_lo, neighbor_hi = raw_span(neighbor_model)
+    overlap_lo = max(candidate_lo, neighbor_lo)
+    overlap_hi = min(candidate_hi, neighbor_hi)
+    if overlap_hi <= overlap_lo:
+        raise InvalidReference(
+            f"{label}：与紧邻曲线的原读数量程没有重叠区间，不能局部签发。"
+        )
+    grid = np.linspace(overlap_lo, overlap_hi, SEAM_SAMPLE_POINTS)
+    diff = np.abs(adjust(candidate_model, grid) - adjust(neighbor_model, grid))
+    worst = float(np.max(diff))
+    if worst > SEAM_TOLERANCE_LX:
+        raise InvalidReference(
+            f"{label}：重叠区间内同一原读数的最大换算差 {worst:.1f} lx 超过 "
+            f"{SEAM_TOLERANCE_LX} lx，不能局部签发。"
+        )
+    return {"overlap_raw_lux": [round(overlap_lo, 3), round(overlap_hi, 3)],
+            "max_delta_lux": round(worst, 3)}
 
 
 def fmt_minute(minute):

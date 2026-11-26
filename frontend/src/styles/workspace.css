@@ -54,3 +54,15 @@ details summary { cursor: pointer; }
   #content { padding: 1rem; }
   aside.paper-form, aside.margin-note { margin-top: 0.9rem; }
 }
+
+.seam-panel {
+  border: 1px solid var(--line, #c9d4c2);
+  border-left: 4px solid var(--accent, #4f7a4a);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0.8rem 0;
+  background: rgba(79, 122, 74, 0.06);
+  font-size: 0.9rem;
+}
+.seam-panel ul { margin: 0.3rem 0 0.3rem 1.1rem; padding: 0; }
+.seam-panel .hint { color: var(--muted); font-size: 0.82rem; margin-bottom: 0; }

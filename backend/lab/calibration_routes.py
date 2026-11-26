@@ -19,8 +19,18 @@ def versions(db: Db, _operator: Current, probe_id: int | None = None):
 
 @router.get("/active")
 def released(db: Db, _operator: Current):
-    query = select(Calibration).join(ReleaseSlot, ReleaseSlot.calibration_id == Calibration.id)
-    return [map_calibration(row, with_model=False) for row in db.scalars(query.order_by(ReleaseSlot.day.desc()))]
+    # 局部替换后同一校准可占多个槽位：按校准去重，并回带各槽位的分钟窗口。
+    rows = db.scalars(select(Calibration).join(ReleaseSlot, ReleaseSlot.calibration_id == Calibration.id)
+                      .order_by(ReleaseSlot.day.desc(), ReleaseSlot.start_minute)).all()
+    windows = {}
+    for slot in db.scalars(select(ReleaseSlot).order_by(ReleaseSlot.start_minute)):
+        windows.setdefault(slot.calibration_id, []).append(
+            {"start_minute": slot.start_minute, "end_minute": slot.end_minute,
+             "day": slot.day.isoformat(), "mode": slot.mode})
+    result = {}
+    for row in rows:
+        result.setdefault(row.id, map_calibration(row, with_model=False, slot_window=windows.get(row.id)))
+    return list(result.values())
 
 
 @router.get("/{calibration_id}")

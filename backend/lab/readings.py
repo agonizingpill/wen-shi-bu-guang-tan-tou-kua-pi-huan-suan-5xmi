@@ -9,7 +9,7 @@ from sqlalchemy import select
 from .audit import record
 from .auth import CanCapture, Current, Db
 from .calibration_models import Calibration
-from .calibration_service import current_slot
+from .calibration_service import active_slots, find_slot
 from .constants import Mode
 from .installation import require_probe
 from .installation_models import Probe
@@ -52,11 +52,13 @@ def convert(data: RawReading, db: Db, operator: CanCapture):
     probe = require_probe(db, data.probe_id, lock=True)
     if not probe.enabled:
         raise HTTPException(409, "该探头已停用，不能签发新读数。")
-    slot = current_slot(db, data.probe_id, data.day, data.mode)
+    # 按读数时刻落入的现行槽取版本；局部切换只影响切换后新抄录的读数。
+    slot = find_slot(active_slots(db, data.probe_id, data.day, data.mode), data.minute)
     if slot is None:
-        raise HTTPException(409, "该日和亮暗档没有有效换算单。")
+        raise HTTPException(409, "该日、档位和时刻没有有效换算单。")
     calibration = db.get(Calibration, slot.calibration_id)
-    if not calibration.start_minute <= data.minute < calibration.end_minute:
+    # 时间外推以现行槽窗口为准（局部替换后旧校准的槽位可能只覆盖余段）。
+    if not slot.start_minute <= data.minute < slot.end_minute:
         raise HTTPException(409, "读数时间不在已签发换算窗口，不能外推。")
     if not calibration.model["raw_knots"][0] <= data.raw_lux <= calibration.model["raw_knots"][-1]:
         raise HTTPException(409, "原始读数超出见证样本范围，需要补采，不能外推。")
